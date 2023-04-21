@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "degree-days-analysis"
+version = "0.1.0"
+description = ""
+authors = ["AlexandreLab <canet.alexandre@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.11"
+pandas = "^1.4.3"
+seaborn = "^0.11.2"
+cdsapi = "^0.5.1"
+xarray = "^2022.6.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.2"
+ipykernel = "^6.15.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

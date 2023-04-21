@@ -1,0 +1,18 @@
+
+
+poetry is used on mac to manage the virtual environment and libraries, however on windows this does not work well.
+
+A virtual environment is created using with [Virtual Environment Name] = degree_days:
+python3 -m venv [Virtual Environment Name]
+.\[Virtual Environment Folder Name]\Scripts\activate
+
+to deactivate:
+(sample_venv) C:\Users\yoges\Python_venv> deactivate
+
+libraries to install:
+
+seaborn
+matplotlib
+xarray
+pandas
+numpy
