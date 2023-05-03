@@ -6,10 +6,13 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from ..common import enums, functions, schema
+from src.common import enums, functions, schema
 
 PATH_MEASURED_IAT = Path(
     r'C:\Users\sceac10\OneDrive - Cardiff University\General\resources\prediction of overheating data\MeasuredTemperature_16Jun-6Jul_2017.xlsx'
+)
+PATH_EXTENDED_MEASURED_IAT = Path(
+    r"C:\Users\sceac10\OneDrive - Cardiff University\General\resources\prediction of overheating data\extra_data_Loughborough"
 )
 
 
@@ -22,7 +25,27 @@ def calculate_cooling_degree_hours(IAT_df: pd.Series,
   return np.sum(arr_values)
 
 
-def get_measured_data(list_name_sheets: list[str]) -> pd.DataFrame:
+def get_extended_measured_data(filename: str) -> pd.DataFrame:
+  measured_data = pd.read_csv(PATH_EXTENDED_MEASURED_IAT / filename,
+                              index_col=0,
+                              parse_dates=True)
+  if 'West' in filename:
+    cols_to_keep = [
+        'U01_living', 'U09_kitchen', 'U13_frontbedroom_centre_1.1m',
+        'U27_rearbedroom', 'U33_singlebedroom', 'U35_bathroom', 'U37_landing',
+        'U11_hall', 'U07_dining'
+    ]
+  else:
+    cols_to_keep = [
+        'U41_living', 'U49_kitchen', 'U47_dining', 'U51_hall',
+        'U53_frontbedroom_centre_1.1m', 'U70_rearbedroom', 'U79_singlebedroom',
+        'U81_bathroom', 'U83_landing'
+    ]
+
+  return measured_data[cols_to_keep].copy()
+
+
+def get_measured_data_excel(list_name_sheets: list[str]) -> pd.DataFrame:
   frames = {}
   if len(list_name_sheets) > 0:
     for sheet_name in list_name_sheets:
@@ -44,6 +67,14 @@ class validation_RC_model:
   """
   simulation_data: pd.DataFrame
   param_dwellings: dict
+
+  @property
+  def filename(self) -> str:
+    return self.param_dwellings['filename']
+
+  @property
+  def extended_dataset(self) -> bool:
+    return self.param_dwellings['extended_dataset']
 
   @property
   def list_sheets(self):
@@ -68,7 +99,7 @@ class validation_RC_model:
 
   def calculate_metrics(self) -> tuple[float, float]:
     """Calculate the cooling degree hours and the MAE of the simulation data compared to the measured data"""
-    individual_rooms_IAT = get_measured_data(self.list_sheets)
+    individual_rooms_IAT = self.get_measured_data()
     average_IAT = self.weighted_average_measured_IAT_dwelling(
         individual_rooms_IAT)
 
@@ -104,11 +135,19 @@ class validation_RC_model:
     )
     return MAE_results
 
+  def get_measured_data(self) -> pd.DataFrame:
+    if self.extended_dataset:
+      individual_rooms_IAT = get_extended_measured_data(self.filename)
+    else:
+      individual_rooms_IAT = get_measured_data_excel(self.list_sheets)
+    return individual_rooms_IAT
+
   def plot_measured_data(self, fig, ax, plot_all_rooms: bool = False):
     """Plot the measured data"""
-    individual_rooms_IAT = get_measured_data(self.list_sheets)
+    individual_rooms_IAT = self.get_measured_data()
     average_IAT = self.weighted_average_measured_IAT_dwelling(
         individual_rooms_IAT)
+    individual_rooms_IAT.index = self.simulation_data.index
     average_IAT.index = self.simulation_data.index
     average_IAT[schema.DataSchema.IAT].plot(
         ax=ax,

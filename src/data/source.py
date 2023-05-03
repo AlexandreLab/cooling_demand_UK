@@ -16,7 +16,7 @@ class SimulationData:
   timestep_simulation: int = 1
   CDD_ref_temperature: float = 24.
   HHD_ref_temperatre: float = 15.5
-  resampling_timestep: int = 3600    # 3600s or one hour
+  resampling_timestep: int = 3600  # 3600s or one hour
 
   def __post_init__(self):
     cooling_weeks = self.get_cooling_weeks(self.CDD_ref_temperature)
@@ -46,9 +46,9 @@ class SimulationData:
     if list_years is None:
       list_years = self.all_years
 
-    filt = (self.era5_data.index.year.isin(list_years) &
-            self.era5_data.index.month.isin(list_months) &
-            self.era5_data.index.isocalendar().week.isin(list_weeks))
+    filt = (self.era5_data.index.year.isin(list_years)
+            & self.era5_data.index.month.isin(list_months)
+            & self.era5_data.index.isocalendar().week.isin(list_weeks))
     return self.era5_data.loc[filt, :].copy()
 
   def get_cooling_weeks(self, CDD_ref_temperature: float) -> list[int]:
@@ -67,7 +67,7 @@ class SimulationData:
 
   def add_heating_season_flag(self,
                               weeks_with_cooling: list[int] | None = None
-                             ) -> None:
+                              ) -> None:
     """Add heating/cooling season flag within the dataset"""
     self.era5_data[schema.OutputDataSchema.HEATINGSEASON] = 1
     self.era5_data.loc[
@@ -102,7 +102,8 @@ class SimulationData:
     """Create default data considering fixed indoor and outdoor air temperature, no heating output and no solar gains."""
     dataf = self.sim_data
     dataf.loc[
-        0, schema.DataSchema.IAT] = self.dwelling.initial_indoor_air_temperature
+        0,
+        schema.DataSchema.IAT] = self.dwelling.initial_indoor_air_temperature
     dataf.loc[:, schema.DataSchema.OAT] = self.dwelling.outdoor_air_temperature
     dataf.loc[:, schema.DataSchema.HEATINGOUTPUT] = 0.
     dataf.loc[:, schema.DataSchema.SOLARRADIATION] = 0.
@@ -120,8 +121,9 @@ class SimulationData:
     """Estimate the solar gains of the building. Return a copy of the simulation data."""
 
     def solar_gains(solar_flux: float) -> float:
-      A = 0.25 * self.dwelling.floor_area    #Opening areas (including windows, roof windows, rooflights and doors), max 25% of total floor area
-      return 0.9 * A * solar_flux * self.dwelling.g_t * self.dwelling.frame_factor * self.dwelling.summer_solar_access / 1000
+      correction_factor = 1
+      A = 0.25 * self.dwelling.floor_area  #Opening areas (including windows, roof windows, rooflights and doors), max 25% of total floor area
+      return correction_factor * 0.9 * A * solar_flux * self.dwelling.g_t * self.dwelling.frame_factor * self.dwelling.summer_solar_access / 1000
 
     self.sim_data[schema.DataSchema.SOLARGAINS] = self.sim_data[
         schema.DataSchema.SOLARRADIATION].apply(lambda x: solar_gains(x))
@@ -130,7 +132,8 @@ class SimulationData:
   def calculate_appliances_internal_heat_gains(self, month: int, nb_days: int):
     """"Calculate the internal heat gains of appliances in kW"""
     monthly_energy_use = self.dwelling.annual_appliance_energy_use * (
-        1 + 0.157 * math.cos(2 * math.pi * (month - 1.78) / 12)) * nb_days / 365
+        1 + 0.157 * math.cos(2 * math.pi *
+                             (month - 1.78) / 12)) * nb_days / 365
     return monthly_energy_use / (24 * nb_days)
 
   def calculate_occupancy_heat_gains(self) -> float:
@@ -146,24 +149,26 @@ class SimulationData:
 #     return R*degree_days*24/COP
 
   def create_era5_based_simulation_data(self,
-                                        estimate_solar_gains: bool |
-                                        None = True,
+                                        estimate_solar_gains: bool
+                                        | None = True,
                                         list_weeks: list[int] | None = None,
                                         list_months: list[int] | None = None,
                                         list_years: list[int] | None = None):
     filtered_era5_data = self.filter_era5_data(list_weeks=list_weeks,
                                                list_months=list_months,
                                                list_years=list_years)
-    filtered_era5_data[
-        schema.DataSchema.APPLIANCESGAINS] = filtered_era5_data.apply(
-            lambda row: self.calculate_appliances_internal_heat_gains(
-                row.name.month, row.name.days_in_month),
-            axis=1)
-    filtered_era5_data[schema.DataSchema.
-                       OCCUPANCYGAINS] = self.calculate_occupancy_heat_gains()
+    # filtered_era5_data[
+    #     schema.DataSchema.APPLIANCESGAINS] = filtered_era5_data.apply(
+    #         lambda row: self.calculate_appliances_internal_heat_gains(
+    #             row.name.month, row.name.days_in_month),
+    #         axis=1)
+    # filtered_era5_data[schema.DataSchema.
+    #                 OCCUPANCYGAINS] = self.calculate_occupancy_heat_gains()
+    filtered_era5_data[schema.DataSchema.APPLIANCESGAINS] = 0
+    filtered_era5_data[schema.DataSchema.OCCUPANCYGAINS] = 0
 
     filtered_era5_data.reset_index(inplace=True, drop=True)
-    filtered_era5_data.index = filtered_era5_data.index.values * 60 * 60    # convert index to seconds
+    filtered_era5_data.index = filtered_era5_data.index.values * 60 * 60  # convert index to seconds
     length_simulation = filtered_era5_data.index.values[
         -1] / self.timestep_simulation + 1
     simulation_data = self.create_simulation_data_skeleton(length_simulation)
@@ -179,10 +184,11 @@ class SimulationData:
         self.sim_data[schema.DataSchema.OAT].interpolate(), inplace=True)
 
     self.sim_data.loc[:, schema.DataSchema.HEATINGSEASON] = np.nan
-    self.sim_data.loc[filtered_era5_data.index,
-                      schema.DataSchema.HEATINGSEASON] = filtered_era5_data.loc[
-                          filtered_era5_data.index,
-                          schema.OutputDataSchema.HEATINGSEASON].values
+    self.sim_data.loc[
+        filtered_era5_data.index,
+        schema.DataSchema.HEATINGSEASON] = filtered_era5_data.loc[
+            filtered_era5_data.index,
+            schema.OutputDataSchema.HEATINGSEASON].values
     self.sim_data[schema.DataSchema.HEATINGSEASON].fillna(method='ffill',
                                                           inplace=True)
 
