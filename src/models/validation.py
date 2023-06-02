@@ -128,8 +128,8 @@ class validation_RC_model:
 
   def get_MAE(self, average_IAT: pd.DataFrame) -> float:
     MAE_results = functions.calculate_MAE(
-        average_IAT[schema.DataSchema.IAT],
-        self.simulation_data[schema.DataSchema.IAT])
+        average_IAT[schema.DataSchema.IAT].values,
+        self.simulation_data[schema.DataSchema.IAT].values)
     print(
         f"The MAE of the model compared to measured data is {MAE_results:.2f} degreeC."
     )

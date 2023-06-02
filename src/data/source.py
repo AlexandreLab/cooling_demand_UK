@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from ..common import schema
-from ..models import thermal_model
+from src.common import schema
+from src.models import thermal_model
 
 
 @dataclass

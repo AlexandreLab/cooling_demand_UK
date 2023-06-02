@@ -4,7 +4,7 @@ from enum import Enum, auto
 class DataSource(Enum):
   IES = "IES"
   MEASURED = "Measured"
-  RC = "R1C1"
+  RC = "1R1C"
 
 
 class Category(Enum):

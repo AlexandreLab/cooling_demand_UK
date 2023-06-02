@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from ..data import source
-from ..models import thermal_model
-from . import enums, schema
+from src.data import source
+from src.models import thermal_model
+from src.common import enums, schema
 
 TIMESTEP_SIMULATION = 3600
 
@@ -67,13 +67,13 @@ def create_dd_dataframes_for_all_LAs(
 
 
 def print_heating_and_cooling_demand(
-    simulation_results: pd.DataFrame,) -> tuple[float, float]:
+    simulation_results: pd.DataFrame, ) -> tuple[float, float]:
   cooling_demand = float(simulation_results.loc[
       simulation_results[schema.DataSchema.HEATINGOUTPUT] < 0,
-      schema.DataSchema.HEATINGOUTPUT,].sum())
+      schema.DataSchema.HEATINGOUTPUT, ].sum())
   heating_demand = float(simulation_results.loc[
       simulation_results[schema.DataSchema.HEATINGOUTPUT] > 0,
-      schema.DataSchema.HEATINGOUTPUT,].sum())
+      schema.DataSchema.HEATINGOUTPUT, ].sum())
 
   print(
       f"heating demand {heating_demand}kWh and cooling demand is {cooling_demand}kWh"
@@ -108,7 +108,8 @@ def get_radiation_data(target_area: str) -> pd.DataFrame:
   target_variable = enums.ExtractFile.SOLARRADIATION
 
   path_project: str = str(Path().absolute()).split("code")[0]
-  path_netcdf_files = Path(path_project) / "data" / f"{target_area}_netcdf_data"
+  path_netcdf_files = Path(
+      path_project) / "data" / f"{target_area}_netcdf_data"
   if path_netcdf_files.exists():
     # Load data
     radiation_data = load_netcdf_files(path_netcdf_files, target_variable)
@@ -117,7 +118,7 @@ def get_radiation_data(target_area: str) -> pd.DataFrame:
     radiation_data[radiation_data < 0] = 0
     radiation_data[target_variable.column_name] = (
         radiation_data[target_variable.column_name] / 3600
-    )    # convert from J/m2 to W/m2
+    )  # convert from J/m2 to W/m2
   else:
     radiation_data = pd.DataFrame(columns=[target_variable.column_name])
     print(f"The radiation data for {target_area} could not be found.")
@@ -143,7 +144,7 @@ def get_temperature_data(target_area: str) -> pd.DataFrame:
       temperature_data = load_netcdf_files(path_netcdf_files, target_variable)
       temperature_data[target_variable.column_name] = (
           temperature_data[target_variable.column_name] - 273.15
-      )    # convert from degreeK to degreeC
+      )  # convert from degreeK to degreeC
     else:
       print(f"The temperature data for {target_area} could not be found.")
 
@@ -210,13 +211,13 @@ def get_degree_days_dataframe(
   degree_day_dataf[
       f"{schema.OutputDataSchema.HDD}_{HDD_ref_temperature:0.1f}"] = (
           dataf[schema.OutputDataSchema.OAT].apply(
-              lambda x: calculate_heating_degree(x, HDD_ref_temperature)).values
-          / timestep_per_day)
+              lambda x: calculate_heating_degree(x, HDD_ref_temperature
+                                                 )).values / timestep_per_day)
   degree_day_dataf[
       f"{schema.OutputDataSchema.CDD}_{CDD_ref_temperature:0.1f}"] = (
           dataf[schema.OutputDataSchema.OAT].apply(
-              lambda x: calculate_cooling_degree(x, CDD_ref_temperature)).values
-          / timestep_per_day)
+              lambda x: calculate_cooling_degree(x, CDD_ref_temperature
+                                                 )).values / timestep_per_day)
   return degree_day_dataf
 
 
