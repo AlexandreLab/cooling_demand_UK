@@ -151,6 +151,9 @@ class validation_RC_model:
     average_IAT.index = self.simulation_data.index
     average_IAT[schema.DataSchema.IAT].plot(
         ax=ax,
+        kind='line',
+        marker='o',
+        markevery=100,
         color='black',
         linewidth=0.8,
         label=enums.DataSource.MEASURED.value)
@@ -175,7 +178,7 @@ class validation_RC_model:
         kind='line',
         color='red',
         marker='*',
-        markevery=20,
+        markevery=100,
         linewidth=1,
         label=enums.DataSource.RC.value)
     # ax.legend()

@@ -10,8 +10,6 @@ from src.models import thermal_model
 from src.common import enums, schema, sim_param
 
 
-
-
 def resample_modelling_results(
     simulation_results: pd.DataFrame) -> pd.DataFrame:
   """Resample the results to decrease amount of data and for visualisation purposes."""
@@ -21,36 +19,35 @@ def resample_modelling_results(
   return simulation_results.groupby(schema.DataSchema.TIME_SECONDS).mean()
 
 
-# def run_simulation(
-#     external_data: pd.DataFrame,
-#     dwelling_data: pd.Series,
-#     simulation_year: int,
-#     solar_gains: bool,
-#     initial_indoor_air_temperature: float | None = 21,
-# ) -> list[float]:
-#   """Estimate the heating and cooling demand for a dwelling
-#     with specific R and C based on external air temperature and solar radiation."""
-#   assert initial_indoor_air_temperature is not None
-#   # Create models
+def run_simulation(
+    external_data: pd.DataFrame,
+    dwelling_data: pd.Series,
+    simulation_year: int,
+    solar_gains: bool,
+    initial_indoor_air_temperature: float | None = 21,
+) -> list[float]:
+  """Estimate the heating and cooling demand for a dwelling
+    with specific R and C based on external air temperature and solar radiation."""
+  assert initial_indoor_air_temperature is not None
+  # Create models
 
-#   dwelling = thermal_model.ThermalModel(
-#       R=1 / dwelling_data["Average thermal losses kW/K"],
-#       C=dwelling_data["Average thermal capacity kJ/K"],
-#       floor_area=dwelling_data["Average floor area m2"],
-#       initial_indoor_air_temperature=initial_indoor_air_temperature,
-#   )
-#   dwelling.init_parameters()
-#   data_source = source.SimulationData(dwelling,
-#                                       external_data,
-#                                       timestep_simulation=sim_param.TIMESTEP_SIMULATION)
-#   rcmodel_dataf = data_source.create_era5_based_simulation_data(
-#       estimate_solar_gains=solar_gains, list_years=[simulation_year])
-#   rcmodel_dataf = dwelling.estimate_heating_demand(rcmodel_dataf)
-#   resampled_rcmodel_dataf = data_source.resample_modelling_results(
-#       rcmodel_dataf)
-#   heating_demand, cooling_demand = print_heating_and_cooling_demand(
-#       resampled_rcmodel_dataf)
-#   return [heating_demand, cooling_demand]
+  dwelling = thermal_model.ThermalModel(
+      R=1 / dwelling_data["Average thermal losses kW/K"],
+      C=dwelling_data["Average thermal capacity kJ/K"],
+      floor_area=dwelling_data["Average floor area m2"],
+  )
+  data_source = source.SimulationData(
+      dwelling,
+      external_data,
+      timestep_simulation=sim_param.TIMESTEP_SIMULATION)
+  rcmodel_dataf = data_source.create_era5_based_simulation_data(
+      estimate_solar_gains=solar_gains, list_years=[simulation_year])
+  rcmodel_dataf = dwelling.estimate_heating_demand(rcmodel_dataf)
+  resampled_rcmodel_dataf = data_source.resample_modelling_results(
+      rcmodel_dataf)
+  heating_demand, cooling_demand = print_heating_and_cooling_demand(
+      resampled_rcmodel_dataf)
+  return [heating_demand, cooling_demand]
 
 
 def create_dd_dataframes_for_all_LAs(

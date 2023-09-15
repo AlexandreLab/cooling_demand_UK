@@ -122,11 +122,15 @@ class SimulationData:
 #     -COP: efficient of heating/cooling system"""
 #     return R*degree_days*24/COP
 
+
+  def create_CIBSE_based_simulation_data(self)->pd.DataFrame:
+    return pd.DataFrame()
+
   def create_era5_based_simulation_data(self,
                                         initial_IAT: float = 21,
                                         list_weeks: list[int] | None = None,
                                         list_months: list[int] | None = None,
-                                        list_years: list[int] | None = None):
+                                        list_years: list[int] | None = None)->pd.DataFrame:
 
     filtered_era5_data = self.filter_era5_data(list_weeks=list_weeks,
                                                list_months=list_months,

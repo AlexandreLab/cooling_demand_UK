@@ -5,6 +5,7 @@ class ValidationDataSchema:
   SOLARRADIATION = 'Global Radiation (W/m2)'
   OAT = 'Dry Bulb (degC)'
 
+
 class OutputDataSchema:
   DATEINDEX = "Datetime_UTC"
   OAT = "Temperature_(degreeC)"
@@ -42,5 +43,5 @@ class ResultSchema:
 
 
 class VisualisationSchema:
-  IAT = "Average indoor air temperature\n(degreeC)"
+  IAT = "Average indoor\nair temperature ($^\circ$C)"
   GAINS = "Heat gains (kW)"

@@ -99,7 +99,7 @@ class ThermalModel:
     return self.number_occupants * 60 / 1000
 
   def calc_ventilation_losses(self, iat: float, oat: float) -> float:
-    q = 1.225  #kg/m3
+    q = 1.204  #kg/m3 or 1.204/1000 kg/l
     cp = 1005  # J/kg.K
     mass_flow_rate = q * self.air_change_rate * self.volume_rooms
     return (iat - oat) * mass_flow_rate * cp / 1000  #kW
