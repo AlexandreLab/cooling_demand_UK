@@ -16,8 +16,7 @@ class ThermalModel:
   R: float = 0  # K/kW
   C: float = 0  # kJ/K
   floor_area: float = 50
-  volume_rooms: float = 0  #m3
-  air_change_rate = 0.33  #air changes per second
+  air_change_rate = 0.0005  #0.33  #air changes per second
   cooling_design_temperature: float = sim_param.TARGET_INDOOR_AIR_TEMP  #28
   heating_design_temperature: float = sim_param.TARGET_INDOOR_AIR_TEMP  #-5
   target_indoor_air_temperature: float = sim_param.TARGET_INDOOR_AIR_TEMP
@@ -26,6 +25,11 @@ class ThermalModel:
   g_t = 0.76  # Transmittance factors for glazing 0.85 (single glazed) to 0.57 (triple glazed), 0.76 double glazed Table 6b p216.
   frame_factor = 0.7  #0.7-0.8 in Table 6c p216
   summer_solar_access = 0.9  # Summer solar access factor: 0.9 (Average value) Table 6d p216
+
+  @property
+  def volume_rooms(self) -> float:
+    # https://www.designsindetail.com/articles/whats-the-uks-standard-ceiling-height-for-houses-extensions-and-loft-conversions#:~:text=Ceiling%20height%20standards,75%25%20of%20the%20floor%20area.
+    return self.floor_area * 2.3
 
   @property
   def exp_factor(self) -> float:

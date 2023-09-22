@@ -23,7 +23,7 @@ SIM_DATA_COLUMNS = {
 
 @dataclass
 class SimulationData:
-  era5_data: pd.DataFrame
+  weather_data: pd.DataFrame
   sim_data: pd.DataFrame = field(init=False)
   CDD_ref_temperature: float = 24.
   HHD_ref_temperatre: float = 15.5
@@ -34,20 +34,20 @@ class SimulationData:
 
   @property
   def all_months(self) -> list[int]:
-    return self.era5_data.index.month.unique().to_list()
+    return self.weather_data.index.month.unique().to_list()
 
   @property
   def all_years(self) -> list[int]:
-    return self.era5_data.index.year.unique().to_list()
+    return self.weather_data.index.year.unique().to_list()
 
   @property
   def all_weeks(self) -> list[int]:
-    return list(self.era5_data.index.isocalendar().week.unique())
+    return list(self.weather_data.index.isocalendar().week.unique())
 
-  def filter_era5_data(self,
-                       list_weeks: list[int] | None = None,
-                       list_months: list[int] | None = None,
-                       list_years: list[int] | None = None) -> pd.DataFrame:
+  def filter_weather_data(self,
+                          list_weeks: list[int] | None = None,
+                          list_months: list[int] | None = None,
+                          list_years: list[int] | None = None) -> pd.DataFrame:
     """Return a filtered copy of the data"""
     if list_weeks is None:
       list_weeks = self.all_weeks
@@ -56,20 +56,20 @@ class SimulationData:
     if list_years is None:
       list_years = self.all_years
 
-    filt = (self.era5_data.index.year.isin(list_years)
-            & self.era5_data.index.month.isin(list_months)
-            & self.era5_data.index.isocalendar().week.isin(list_weeks))
-    return self.era5_data.loc[filt, :].copy()
+    filt = (self.weather_data.index.year.isin(list_years)
+            & self.weather_data.index.month.isin(list_months)
+            & self.weather_data.index.isocalendar().week.isin(list_weeks))
+    return self.weather_data.loc[filt, :].copy()
 
   def get_cooling_weeks(self, CDD_ref_temperature: float) -> list[int]:
     """Return a list of the weeks for which cooling is required. Default is all weeks if no CDD column."""
     cdd_col = f"{schema.OutputDataSchema.CDD}_{CDD_ref_temperature}"
-    if cdd_col in self.era5_data.columns:
-      cooling_seasons: list[int] = list(self.era5_data.loc[
-          self.era5_data[cdd_col] > 0].index.isocalendar().week.unique())
+    if cdd_col in self.weather_data.columns:
+      cooling_seasons: list[int] = list(self.weather_data.loc[
+          self.weather_data[cdd_col] > 0].index.isocalendar().week.unique())
     else:
       cooling_seasons: list[int] = list(
-          self.era5_data.index.isocalendar().week.unique())
+          self.weather_data.index.isocalendar().week.unique())
     cooling_seasons = list(
         np.arange(min(cooling_seasons),
                   max(cooling_seasons) + 1))
@@ -79,9 +79,9 @@ class SimulationData:
                               weeks_with_cooling: list[int] | None = None
                               ) -> None:
     """Add heating/cooling season flag within the dataset"""
-    self.era5_data[schema.OutputDataSchema.HEATINGSEASON] = 1
-    self.era5_data.loc[
-        self.era5_data.index.isocalendar().week.isin(weeks_with_cooling),
+    self.weather_data[schema.OutputDataSchema.HEATINGSEASON] = 1
+    self.weather_data.loc[
+        self.weather_data.index.isocalendar().week.isin(weeks_with_cooling),
         schema.OutputDataSchema.HEATINGSEASON] = 0
 
   def create_simulation_data_skeleton(self,
@@ -122,19 +122,40 @@ class SimulationData:
 #     -COP: efficient of heating/cooling system"""
 #     return R*degree_days*24/COP
 
+  def create_CIBSE_based_simulation_data(
+      self,
+      initial_IAT: float = 21,
+      list_weeks: list[int] | None = None,
+      list_months: list[int] | None = None,
+      list_years: list[int] | None = None) -> pd.DataFrame:
 
-  def create_CIBSE_based_simulation_data(self)->pd.DataFrame:
-    return pd.DataFrame()
+    filtered_weather_data = self.filter_weather_data(list_weeks=list_weeks,
+                                                     list_months=list_months,
+                                                     list_years=list_years)
 
-  def create_era5_based_simulation_data(self,
-                                        initial_IAT: float = 21,
-                                        list_weeks: list[int] | None = None,
-                                        list_months: list[int] | None = None,
-                                        list_years: list[int] | None = None)->pd.DataFrame:
+    dataf = (self.create_simulation_data_skeleton(
+        len(filtered_weather_data)).pipe(self.create_default_simulation_data,
+                                         initial_IAT))
+    dataf[schema.DataSchema.OAT] = filtered_weather_data[
+        schema.DataSchema.OAT].values
 
-    filtered_era5_data = self.filter_era5_data(list_weeks=list_weeks,
-                                               list_months=list_months,
-                                               list_years=list_years)
+    dataf.loc[:, schema.DataSchema.SOLARRADIATION] = np.nan
+    dataf[schema.DataSchema.SOLARRADIATION] = filtered_weather_data[
+        schema.DataSchema.SOLARRADIATION].values
+    dataf[schema.DataSchema.SOLARRADIATION].fillna(
+        dataf[schema.DataSchema.SOLARRADIATION].interpolate(), inplace=True)
+    return dataf
+
+  def create_era5_based_simulation_data(
+      self,
+      initial_IAT: float = 21,
+      list_weeks: list[int] | None = None,
+      list_months: list[int] | None = None,
+      list_years: list[int] | None = None) -> pd.DataFrame:
+
+    filtered_era5_data = self.filter_weather_data(list_weeks=list_weeks,
+                                                  list_months=list_months,
+                                                  list_years=list_years)
     # filtered_era5_data[
     #     schema.DataSchema.APPLIANCESGAINS] = filtered_era5_data.apply(
     #         lambda row: self.calculate_appliances_internal_heat_gains(

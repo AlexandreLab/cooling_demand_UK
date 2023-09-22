@@ -20,10 +20,8 @@ def resample_modelling_results(
 
 
 def run_simulation(
-    external_data: pd.DataFrame,
+    sim_data: pd.DataFrame,
     dwelling_data: pd.Series,
-    simulation_year: int,
-    solar_gains: bool,
     initial_indoor_air_temperature: float | None = 21,
 ) -> list[float]:
   """Estimate the heating and cooling demand for a dwelling
@@ -35,19 +33,14 @@ def run_simulation(
       R=1 / dwelling_data["Average thermal losses kW/K"],
       C=dwelling_data["Average thermal capacity kJ/K"],
       floor_area=dwelling_data["Average floor area m2"],
+      cooling_design_temperature=35,
   )
-  data_source = source.SimulationData(
-      dwelling,
-      external_data,
-      timestep_simulation=sim_param.TIMESTEP_SIMULATION)
-  rcmodel_dataf = data_source.create_era5_based_simulation_data(
-      estimate_solar_gains=solar_gains, list_years=[simulation_year])
-  rcmodel_dataf = dwelling.estimate_heating_demand(rcmodel_dataf)
-  resampled_rcmodel_dataf = data_source.resample_modelling_results(
-      rcmodel_dataf)
-  heating_demand, cooling_demand = print_heating_and_cooling_demand(
-      resampled_rcmodel_dataf)
-  return [heating_demand, cooling_demand]
+
+  dwelling.load_model_data(sim_data)
+  rcmodel_dataf = dwelling.run_model()
+  rcmodel_dataf.index.name = schema.DataSchema.TIME_HOURS
+  heating_demand, cooling_demand = print_heating_and_cooling_demand(rcmodel_dataf)
+  return heating_demand, cooling_demand
 
 
 def create_dd_dataframes_for_all_LAs(
