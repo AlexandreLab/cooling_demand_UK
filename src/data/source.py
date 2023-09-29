@@ -1,11 +1,8 @@
-import math
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
-
 from src.common import schema, sim_param
-from src.models import thermal_model
 
 SIM_DATA_COLUMNS = {
     schema.DataSchema.IAT: 'float64',
@@ -84,15 +81,16 @@ class SimulationData:
         self.weather_data.index.isocalendar().week.isin(weeks_with_cooling),
         schema.OutputDataSchema.HEATINGSEASON] = 0
 
-  def create_simulation_data_skeleton(self,
-                                      length_simulation: int) -> pd.DataFrame:
+  def create_simulation_data_skeleton(
+      self, org_date_index: pd.DatetimeIndex) -> pd.DataFrame:
     dataf = pd.DataFrame(
         {
             col_name: pd.Series(dtype=col_type)
             for col_name, col_type in SIM_DATA_COLUMNS.items()
         },
-        index=np.arange(length_simulation))
-    dataf.index = dataf.index.to_numpy() * sim_param.TIMESTEP_SIMULATION
+        index=org_date_index)
+    # dataf.resample(sim_param.TIMESTEP_SIMULATION).mean()
+
     return dataf
 
   def create_default_simulation_data(self,
@@ -101,8 +99,8 @@ class SimulationData:
     """Create default data considering fixed indoor and outdoor air temperature, no heating output and no solar gains."""
     for col in SIM_DATA_COLUMNS.keys():
       dataf[col] = 0
-
-    dataf.loc[0, schema.DataSchema.IAT] = initial_IAT
+    initial_index = dataf.index[0]
+    dataf.loc[initial_index, schema.DataSchema.IAT] = initial_IAT
     dataf[schema.DataSchema.OAT] = 24
     dataf = dataf.astype(float)
     return dataf
@@ -132,11 +130,10 @@ class SimulationData:
     filtered_weather_data = self.filter_weather_data(list_weeks=list_weeks,
                                                      list_months=list_months,
                                                      list_years=list_years)
-
     dataf = (self.create_simulation_data_skeleton(
-        len(filtered_weather_data)).pipe(self.create_default_simulation_data,
-                                         initial_IAT))
-    dataf[schema.DataSchema.OAT] = filtered_weather_data[
+        filtered_weather_data.index).pipe(self.create_default_simulation_data,
+                                          initial_IAT))
+    dataf.loc[:, schema.DataSchema.OAT] = filtered_weather_data[
         schema.DataSchema.OAT].values
 
     dataf.loc[:, schema.DataSchema.SOLARRADIATION] = np.nan
@@ -156,20 +153,12 @@ class SimulationData:
     filtered_era5_data = self.filter_weather_data(list_weeks=list_weeks,
                                                   list_months=list_months,
                                                   list_years=list_years)
-    # filtered_era5_data[
-    #     schema.DataSchema.APPLIANCESGAINS] = filtered_era5_data.apply(
-    #         lambda row: self.calculate_appliances_internal_heat_gains(
-    #             row.name.month, row.name.days_in_month),
-    #         axis=1)
-    # filtered_era5_data[schema.DataSchema.
-    #                 OCCUPANCYGAINS] = self.calculate_occupancy_heat_gains()
-    filtered_era5_data.reset_index(inplace=True, drop=True)
-    filtered_era5_data.index = filtered_era5_data.index.values * 60 * 60  # convert index to seconds
-    index_arr = filtered_era5_data.index
-    length_simulation = index_arr[-1] / sim_param.TIMESTEP_SIMULATION + 1
 
-    dataf = (self.create_simulation_data_skeleton(length_simulation).pipe(
-        self.create_default_simulation_data, initial_IAT))
+    dataf = (self.create_simulation_data_skeleton(
+        filtered_era5_data.index).pipe(self.create_default_simulation_data,
+                                       initial_IAT))
+    filtered_era5_data = filtered_era5_data.resample(
+        sim_param.TIMESTEP_SIMULATION).mean()
 
     dataf[schema.DataSchema.OAT] = filtered_era5_data[
         schema.DataSchema.OAT].values
@@ -184,19 +173,3 @@ class SimulationData:
         dataf[schema.DataSchema.SOLARRADIATION].interpolate(), inplace=True)
 
     return dataf
-
-    # filtered_index = filtered_era5_data.index
-    # filtered_index = filtered_index[filtered_index<=rcmodel_dataf.index[-1]]
-    # rcmodel_dataf.loc[0, schema.DataSchema.IAT] = initial_indoor_air_temperature
-
-    # rcmodel_dataf.loc[filtered_index, schema.DataSchema.OAT] = input_data.loc[filtered_index, schema.OutputDataSchema.OAT].values
-    # rcmodel_dataf[schema.DataSchema.OAT].fillna(rcmodel_dataf[schema.DataSchema.OAT].interpolate(), inplace=True)
-
-    # rcmodel_dataf.loc[filtered_index, schema.DataSchema.SOLARRADIATION] = input_data.loc[filtered_index, schema.OutputDataSchema.SOLARRADIATION].values
-    # rcmodel_dataf[schema.DataSchema.SOLARRADIATION].fillna(rcmodel_dataf[schema.DataSchema.SOLARRADIATION].interpolate(), inplace=True)
-
-    # rcmodel_dataf.loc[filtered_index, schema.DataSchema.HEATINGSEASON] = input_data.loc[filtered_index, schema.OutputDataSchema.HEATINGSEASON].values
-    # rcmodel_dataf[schema.DataSchema.HEATINGSEASON].fillna(method='ffill', inplace=True)
-
-    # rcmodel_dataf.loc[:, schema.DataSchema.HEATINGOUTPUT] = 0.
-    # rcmodel_dataf.head()

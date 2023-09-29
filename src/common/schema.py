@@ -1,6 +1,16 @@
 from . import enums
 
 
+class DwellingDataSchema:
+  THERMAL_LOSSES = "Average thermal losses kW/K"
+  THERMAL_CAPACITY = "Average thermal capacity kJ/K"
+  FLOOR_AREA = "Average floor area m2"
+  CIBSE_CITY = "CIBSE_city"
+  REGION = "Region"
+  LOCAL_AUTHORITY = "Local Authority"
+  THERMAL_CAPACITY_LEVEL = "Thermal capacity level"
+
+
 class ValidationDataSchema:
   SOLARRADIATION = 'Global Radiation (W/m2)'
   OAT = 'Dry Bulb (degC)'

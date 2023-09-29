@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from src.data import source
 from src.models import thermal_model
 from src.common import enums, schema, sim_param
 
@@ -22,25 +21,27 @@ def resample_modelling_results(
 def run_simulation(
     sim_data: pd.DataFrame,
     dwelling_data: pd.Series,
-    initial_indoor_air_temperature: float | None = 21,
-) -> list[float]:
+    initial_indoor_air_temperature: float | None = 21) -> pd.DataFrame:
+  # ) -> list[float]:
   """Estimate the heating and cooling demand for a dwelling
     with specific R and C based on external air temperature and solar radiation."""
   assert initial_indoor_air_temperature is not None
   # Create models
 
   dwelling = thermal_model.ThermalModel(
-      R=1 / dwelling_data["Average thermal losses kW/K"],
-      C=dwelling_data["Average thermal capacity kJ/K"],
-      floor_area=dwelling_data["Average floor area m2"],
+      R=1 / dwelling_data[schema.DwellingDataSchema.THERMAL_LOSSES],
+      C=dwelling_data[schema.DwellingDataSchema.THERMAL_CAPACITY],
+      floor_area=dwelling_data[schema.DwellingDataSchema.FLOOR_AREA],
       cooling_design_temperature=35,
   )
 
   dwelling.load_model_data(sim_data)
   rcmodel_dataf = dwelling.run_model()
   rcmodel_dataf.index.name = schema.DataSchema.TIME_HOURS
-  heating_demand, cooling_demand = print_heating_and_cooling_demand(rcmodel_dataf)
-  return heating_demand, cooling_demand
+  return rcmodel_dataf
+  # heating_demand, cooling_demand = print_heating_and_cooling_demand(
+  #     rcmodel_dataf)
+  # return heating_demand, cooling_demand
 
 
 def create_dd_dataframes_for_all_LAs(
