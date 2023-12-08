@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import calendar
 import math
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+
+import icecream as ic
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-
-from src.common import schema, sim_param
-import calendar
-from pathlib import Path
-import icecream as ic
 from dotenv import load_dotenv
-import os
+
+from common import schema, sim_param
 
 load_dotenv()  # take environment variables from .env.
 
@@ -74,18 +75,19 @@ class ThermalModel:
   R: float = 0  # K/kW
   C: float = 0  # kJ/K
   floor_area: float = 50
-  air_change_rate: float = 0.0005  #air changes per second
-  air_change_rate_window_open = 0.0005  #air changes per second
-  cooling_design_temperature: float = sim_param.TARGET_INDOOR_AIR_TEMP  #28
-  heating_design_temperature: float = sim_param.TARGET_INDOOR_AIR_TEMP  #-5
-  target_indoor_air_temperature: float = sim_param.TARGET_INDOOR_AIR_TEMP
+  air_change_rate: float = 0.15  #air changes per hour when windows are closed (infiltration rate)
+  air_change_rate_window_open: float = 4  #air changes per hour when windows are open
+  cooling_design_temperature: float = sim_param.COOLING_DESIGN_AIR_TEMP
+  heating_design_temperature: float = sim_param.HEATING_TARGET_INDOOR_AIR_TEMP
+  heating_target_indoor_air_temperature: float = sim_param.HEATING_TARGET_INDOOR_AIR_TEMP
+  cooling_target_indoor_air_temperature: float = sim_param.COOLING_TARGET_INDOOR_AIR_TEMP
   initial_heating_output: float = 0
   model_data = pd.DataFrame()
   g_t: float = 0.76  # Transmittance factors for glazing 0.85 (single glazed) to 0.57 (triple glazed), 0.76 double glazed Table 6b p216.
   frame_factor: float = 0.7  #0.7-0.8 in Table 6c p216
   summer_solar_access: float = 0.9  # Summer solar access factor: 0.9 (Average value) Table 6d p216
   opening_window_iat_limit: float = 22  # windows are opened if iat above 22C
-  opening_window_oat_limit: float = 24  # windows can be opened if oat below 24C
+  opening_window_oat_limit: float = 26  # windows can be opened if oat below 26C
   equipment_profile: EquipmentGainsProfile = EquipmentGainsProfile()
 
   @property
@@ -115,23 +117,25 @@ class ThermalModel:
 
   @property
   def max_cooling_output(self) -> float:
-    if self.cooling_design_temperature > self.target_indoor_air_temperature:
-      cooling_output = -1 / self.R * (self.cooling_design_temperature -
-                                      self.target_indoor_air_temperature)
+    if self.cooling_design_temperature > self.cooling_target_indoor_air_temperature:
+      cooling_output = -1 / self.R * (
+          self.cooling_design_temperature -
+          self.cooling_target_indoor_air_temperature)
     else:
       cooling_output = 0
     return cooling_output
 
   @property
   def max_heating_output(self) -> float:
-    if self.heating_design_temperature < self.target_indoor_air_temperature:
-      heating_output = 1 / self.R * (self.target_indoor_air_temperature -
-                                     self.heating_design_temperature)
+    if self.heating_design_temperature < self.heating_target_indoor_air_temperature:
+      heating_output = 1 / self.R * (self.heating_target_indoor_air_temperature
+                                     - self.heating_design_temperature)
     else:
       heating_output = 0
     return heating_output
 
   def load_model_data(self, dataf: pd.DataFrame) -> None:
+    # ic.ic(self)
     self.model_data = dataf.copy()
     self.estimate_solar_gains()
     self.model_data[
@@ -179,12 +183,16 @@ class ThermalModel:
     q = 1.204  #kg/m3 or 1.204/1000 kg/l
     cp = 1005  # J/kg.K
     if window_open:
-      mass_flow_rate = q * self.air_change_rate_window_open * self.volume_rooms
+      mass_flow_rate = q * self.air_change_rate_window_open / 3600 * self.volume_rooms
     else:
-      mass_flow_rate = q * self.air_change_rate * self.volume_rooms
+      mass_flow_rate = q * self.air_change_rate / 3600 * self.volume_rooms
     return (iat - oat) * mass_flow_rate * cp / 1000  #kW
 
   def window_opening_schedule(self, OAT: float, IAT: float) -> bool:
+    # i. Start to open when the internal temperature exceeds 22°C.
+    # ii. Be fully open when the internal temperature exceeds 26°C.
+    # iii. Start to close when the internal temperature falls below 26°C.
+    # iv. Be fully closed when the internal temperature falls below 22°C.
     window_open = False
     if OAT < IAT and IAT > self.opening_window_iat_limit and OAT < self.opening_window_oat_limit:
       window_open = True
@@ -235,23 +243,28 @@ class ThermalModel:
                                       heating_season_flag: int = 0) -> float:
     """Estimated heating output required to get to the target temperature. By default, heating season flag is set to 0."""
     #-(outdoor_air_temperatures[t]-indoor_air_temperatures[t-1])/self.R-solar_gains[t] to keep temperature close to target temperature
-    estimated_heating_required = (self.target_indoor_air_temperature -
-                                  estimated_iat) / (self.R *
-                                                    (1 - self.exp_factor))
+    if heating_season_flag:
+      estimated_heating_required = (self.heating_target_indoor_air_temperature
+                                    - estimated_iat) / (self.R *
+                                                        (1 - self.exp_factor))
+    else:
+      estimated_heating_required = (self.cooling_target_indoor_air_temperature
+                                    - estimated_iat) / (self.R *
+                                                        (1 - self.exp_factor))
     estimated_heating_required = self.cap_estimated_heating_system_output(
         estimated_heating_required, heating_season_flag)
 
     #calculate the expected indoor air temperature
     estimated_iat = estimated_iat + self.R * (
         1 - self.exp_factor) * estimated_heating_required
-    if estimated_iat > sim_param.MAX_INDOOR_AIR_TEMP or estimated_iat > self.target_indoor_air_temperature:
+    if estimated_iat > sim_param.MAX_INDOOR_AIR_TEMP or estimated_iat > self.cooling_target_indoor_air_temperature:
       if not heating_season_flag:  #cooling season
         #Cooling required to avoid going above threshold
         estimated_heating_required = self.max_cooling_output
       else:
         estimated_heating_required = 0
 
-    elif estimated_iat < sim_param.MIN_INDOOR_AIR_TEMP or estimated_iat < self.target_indoor_air_temperature:
+    elif estimated_iat < sim_param.MIN_INDOOR_AIR_TEMP or estimated_iat < self.heating_target_indoor_air_temperature:
       #Heating required to avoid going above threshold
       if heating_season_flag:  #heating season
         estimated_heating_required = self.max_heating_output

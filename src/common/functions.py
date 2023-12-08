@@ -1,12 +1,177 @@
 from datetime import datetime
 from pathlib import Path
 
+import icecream as ic
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-from src.models import thermal_model
-from src.common import enums, schema, sim_param
+from common import enums, schema, sim_param
+from models import thermal_model
+
+PATH_GEO_LOOKUP = Path(
+    r"C:\Users\sceac10\OneDrive - Cardiff University\04 - Projects\22 - Heat demand scotland\data\geo_lookup_tables\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU.csv"
+)
+
+
+def standardise_str(dataf: pd.DataFrame, target_column: str) -> pd.DataFrame:
+  dataf[target_column] = dataf[target_column].str.strip().str.lower(
+  ).str.replace('-', '')
+  dataf[target_column].fillna("uncategorized", inplace=True)
+  return dataf
+
+
+def get_LSOA_code_to_LADCD_lookup() -> pd.DataFrame:
+  geo_lookup = pd.read_csv(PATH_GEO_LOOKUP,
+                           encoding='ISO-8859-1',
+                           low_memory=False)
+  geo_lookup = standardise_str(geo_lookup, schema.geoLookupSchema.ladnm)
+  columns_to_keep = [
+      schema.geoLookupSchema.ladcd, schema.geoLookupSchema.ladnm,
+      schema.geoLookupSchema.lsoa
+  ]
+  geo_lookup = geo_lookup.loc[:, columns_to_keep].copy()
+  return geo_lookup.drop_duplicates().reset_index(drop=True)
+
+
+def get_LA_code_to_name_lookup() -> pd.DataFrame:
+  geo_lookup = pd.read_csv(PATH_GEO_LOOKUP,
+                           encoding='ISO-8859-1',
+                           low_memory=False)
+  geo_lookup = standardise_str(geo_lookup, schema.geoLookupSchema.ladnm)
+  columns_to_keep = [
+      schema.geoLookupSchema.ladcd, schema.geoLookupSchema.ladnm
+  ]
+  geo_lookup = geo_lookup.loc[:, columns_to_keep].copy()
+  return geo_lookup.drop_duplicates().reset_index(drop=True)
+
+
+def prepare_residential_data(dataf: pd.DataFrame, init_year: int,
+                             target_year: int) -> pd.DataFrame:
+  cibse_city_to_region = {
+      'Manchester': ['North West'],
+      'Birmingham': [
+          'West Midlands', 'East', 'South East', 'South West', 'London'
+      ],  #South East, West and London are under Birmingham until CIBSE issue is fixed 
+      'Cardiff': ['Wales'],
+      'Edinburgh': [
+          'North East Scotland', 'East Scotland', 'Orkney', 'Borders Scotland',
+          'Shetland'
+      ],
+      'Glasgow': ['West Scotland', 'Highland', 'Western Isles'],
+      'Leeds': ['Yorkshire and The Humber', 'North East', 'East Midlands'],
+      # 'London_GTW': [],
+      # 'London_LHR': ['South West'],
+      # 'London_LWC': ['London'],
+  }
+  lookup_map = {}
+  for k, v in cibse_city_to_region.items():
+    for region in v:
+      lookup_map[region] = k
+  pd.DataFrame(
+      lookup_map,
+      index=[
+          schema.DwellingDataSchema.REGION,
+          schema.DwellingDataSchema.CIBSE_CITY
+      ]
+  ).T.to_csv(
+      Path(
+          r'C:\Users\sceac10\OneDrive - Cardiff University\General\communication\tables\Region_to_CIBSE_city.csv'
+      ))
+  dataf[schema.DwellingDataSchema.CIBSE_CITY] = dataf[
+      schema.DwellingDataSchema.REGION].apply(lambda x: lookup_map[x])
+
+  increase_rate = get_percentage_increase_dwellings(init_year, target_year)
+  dataf[schema.DwellingDataSchema.NB_DWELLINGS] = dataf[
+      schema.DwellingDataSchema.NB_DWELLINGS].apply(
+          lambda x: round(x * increase_rate, 0)).astype(int)
+
+  return dataf
+
+
+def format_summary_results(results: pd.DataFrame,
+                           nb_dwellings: list[int]) -> pd.DataFrame:
+  results.columns = [
+      schema.ResultSchema.SPECIFICHEATINGDEMAND,
+      schema.ResultSchema.SPECIFICCOOLINGDEMAND
+  ]
+  results[[
+      schema.ResultSchema.HEATINGDEMAND, schema.ResultSchema.COOLINGDEMAND
+  ]] = results.mul(nb_dwellings, axis=0)
+  results.index.name = schema.ResultSchema.INDEX
+  return results
+
+
+def run_batch_simulation(
+    dwellings_data: pd.DataFrame, input_data: pd.DataFrame,
+    saving_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+  list_nb_dwellings = dwellings_data[
+      schema.DwellingDataSchema.NB_DWELLINGS].values
+  metadata_frames = []
+  summary_results_frames = []
+  LA_str = dwellings_data[schema.DwellingDataSchema.LADNM].unique()[0]
+  LACD_str = dwellings_data[schema.DwellingDataSchema.LADCD].unique()[0]
+  save_simulation_path = saving_path / f'{LA_str}_{LACD_str}'
+  save_simulation_path.mkdir(parents=True, exist_ok=True)
+  results_frames = {}
+  for ii, row in dwellings_data.iterrows():
+    ic.ic(ii)
+    results_df = run_simulation(input_data.copy(),
+                                row,
+                                initial_indoor_air_temperature=21)
+    temp_nb_dwellings = row[schema.DwellingDataSchema.NB_DWELLINGS]
+    metadata_frames.append(row)
+    summary_results_frames.append(print_heating_and_cooling_demand(results_df))
+    # results_df.to_parquet(save_simulation_path / f'{ii}_sim_results.gzip')
+    results_frames[ii] = results_df[
+        schema.DataSchema.HEATINGOUTPUT] * temp_nb_dwellings
+  heating_output_df = pd.DataFrame(results_frames)
+  heating_output_df.to_csv(save_simulation_path /
+                           f'{LA_str}_{LACD_str}_total_heating_outputs.csv')
+  # pd.concat(results_frames, axis=1).to_parquet(save_simulation_path /
+  #                                              f'{LA_str}_heating_outputs.gzip')
+  summary_results = format_summary_results(
+      pd.DataFrame(summary_results_frames), list_nb_dwellings)
+  summary_results.index = dwellings_data.index
+  metadata = pd.concat(metadata_frames, axis=1).T
+  metadata.index.name = schema.ResultSchema.INDEX
+
+  return summary_results, metadata
+
+
+def format_weather_data(dataf: pd.DataFrame) -> pd.DataFrame:
+  external_data = dataf.rename(columns={
+      'GSR': schema.DataSchema.SOLARRADIATION,
+      'DBT': schema.DataSchema.OAT
+  })
+  external_data['index'] = pd.to_datetime(
+      external_data[['Year', 'Month', 'Day', 'Hour']])
+  external_data = external_data.set_index('index')
+  external_data.head()
+  filt = (external_data.index.month >= 5) & (external_data.index.month <= 9)
+  cols_to_keep = [schema.DataSchema.SOLARRADIATION, schema.DataSchema.OAT]
+  external_data = external_data.loc[filt, cols_to_keep]
+  return external_data
+
+
+def get_percentage_increase_dwellings(init_year: int,
+                                      target_year: int) -> float:
+  PATH_TABLES = Path(
+      r"C:\Users\sceac10\OneDrive - Cardiff University\General\communication\tables"
+  )
+  fn = "Dwellings_size.csv"
+  dataf = pd.read_csv(PATH_TABLES / fn, index_col=0, thousands=r',')
+  dataf = dataf.dropna(how='any').T
+  str_init_year = str(init_year)
+  str_target_year = str(target_year)
+  if str_init_year not in dataf.index:
+    str_init_year = dataf.index[0]
+  if str_target_year not in dataf.index:
+    str_target_year = dataf.index[-1]
+
+  init_number = dataf.loc[str_init_year, ' Number of households ']
+  target_number = dataf.loc[str_target_year, ' Number of households ']
+  return target_number / init_number
 
 
 def resample_modelling_results(
@@ -32,12 +197,12 @@ def run_simulation(
       R=1 / dwelling_data[schema.DwellingDataSchema.THERMAL_LOSSES],
       C=dwelling_data[schema.DwellingDataSchema.THERMAL_CAPACITY],
       floor_area=dwelling_data[schema.DwellingDataSchema.FLOOR_AREA],
-      cooling_design_temperature=35,
   )
 
   dwelling.load_model_data(sim_data)
   rcmodel_dataf = dwelling.run_model()
   rcmodel_dataf.index.name = schema.DataSchema.TIME_HOURS
+
   return rcmodel_dataf
   # heating_demand, cooling_demand = print_heating_and_cooling_demand(
   #     rcmodel_dataf)
@@ -75,9 +240,7 @@ def print_heating_and_cooling_demand(
       simulation_results[schema.DataSchema.HEATINGOUTPUT] > 0,
       schema.DataSchema.HEATINGOUTPUT, ].sum())
 
-  print(
-      f"heating demand {heating_demand}kWh and cooling demand is {cooling_demand}kWh"
-  )
+  ic.ic(heating_demand, cooling_demand)
   return heating_demand, cooling_demand
 
 

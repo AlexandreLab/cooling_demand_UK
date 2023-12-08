@@ -1,6 +1,16 @@
 from . import enums
 
 
+class geoLookupSchema:
+  """Schema for England and Wales geocodes"""
+  postcode = "pcds"
+  oa = "oa11cd"
+  lsoa = "lsoa11cd"
+  msoa = "msoa11cd"
+  ladcd = "ladcd"
+  ladnm = "ladnm"
+
+
 class DwellingDataSchema:
   THERMAL_LOSSES = "Average thermal losses kW/K"
   THERMAL_CAPACITY = "Average thermal capacity kJ/K"
@@ -9,6 +19,13 @@ class DwellingDataSchema:
   REGION = "Region"
   LOCAL_AUTHORITY = "Local Authority"
   THERMAL_CAPACITY_LEVEL = "Thermal capacity level"
+  NB_DWELLINGS = "Number of dwellings"
+  COOLING_DEMAND = "Cooling demand (kWh)"
+  LSOA = "LSOA_code"
+  LADCD = "ladcd"
+  LADNM = "ladnm"
+  DWELLING_FORMS = "Dwelling forms"
+  HEATING_SYSTEMS = "Heating systems"
 
 
 class ValidationDataSchema:
@@ -48,10 +65,20 @@ class ResultSchema:
   HEATINGDEMAND = "Heating demand (kWh)"
   COOLINGDEMAND = "Cooling demand (kWh)"
   YEAR = "Year"
-  SPECIFICHEATINGDEMAND = "Specific heating demand (kWh/dwelling)"
-  SPECIFICCOOLINGDEMAND = "Specific cooling demand (kWh/dwelling)"
+  SPECIFICHEATINGDEMAND_DWELLING = "Specific heating demand (kWh/dwelling)"
+  SPECIFICCOOLINGDEMAND_DWELLING = "Specific cooling demand (kWh/dwelling)"
+  SPECIFICCOOLINGDEMAND_AREA = "Specific cooling demand (kWh/m2)"
+  INDEX = "Index"
+  LSOA = DwellingDataSchema.LSOA
 
 
 class VisualisationSchema:
   IAT = "Average indoor\nair temperature ($^\circ$C)"
+  HOURLY_OAT = "Hourly outdoor\nair temperature ($^\circ$C)"
   GAINS = "Heat gains (kW)"
+  PEAK_COOLING = "Peak cooling demand (kW)"
+  COOLINGDEMAND = ResultSchema.COOLINGDEMAND
+  DEMAND_HEADROOM = "Thermal demand headroom (kW)"
+  DEMAND_HEADROOM_AFTER_COOLING = "Thermal demand headroom after cooling demand (kW)"
+  SPECIFICCOOLINGDEMAND_DWELLING = "Specific cooling demand\n(kWh/dwelling)"
+  SPECIFICCOOLINGDEMAND_AREA = "Specific cooling demand\n(kWh/m2)"

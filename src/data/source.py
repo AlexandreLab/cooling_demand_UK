@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
-from src.common import schema, sim_param
+
+from common import schema, sim_param
 
 SIM_DATA_COLUMNS = {
     schema.DataSchema.IAT: 'float64',

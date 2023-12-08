@@ -1,89 +1,121 @@
 from pathlib import Path
 
+import icecream as ic
 import pandas as pd
 
 from common import functions, schema
+from data import source
+
+PATH_GB_DATA = Path(
+    r'C:\Users\sceac10\OneDrive - Cardiff University\04 - Projects\00 - Final data\Annual_demand'
+)
+PATH_CIBSE_DATA = Path(
+    r"C:\Users\sceac10\OneDrive - Cardiff University\General\data\CIBSE weather data\WD16SET\WD16SET\WDD16SET\WDD16SET\WMD16SET\WMD16SET"
+)
+PATH_RESULTS = Path(
+    r'C:\Users\sceac10\OneDrive - Cardiff University\General\04 - Analysis\2050 high emission'
+)
+PATH_SIMULATION_RESULTS = PATH_RESULTS / 'simulation'
+PATH_METADATA = PATH_RESULTS / 'metadata'
+PATH_SUMMARY_RESULTS = PATH_RESULTS / 'summary_results'
 
 
-def get_all_LAs(dataf: pd.DataFrame) -> list[str]:
-  """Return a list of the local authorities in the given dataframe."""
-  return dataf["Local Authority"].unique().tolist()
-
-
-def filter_thermal_characteristics_data(
-    dataf: pd.DataFrame,
-    las_list: list[str] | None = None,
-    thermal_capacity_level: str | None = "medium",
-):
+def import_thermal_characteristics_data(path_data: Path, init_year: int,
+                                        target_year: int) -> pd.DataFrame:
   """Import the thermal characteristics data for a given LA."""
-  if las_list is None:
-    las_list = get_all_LAs(dataf)
-  filt = (dataf["Local Authority"].isin(las_list)) & (
-      dataf["Thermal capacity level"] == thermal_capacity_level)
-  return dataf.loc[filt, :].copy()
-
-
-def import_thermal_characteristics_data(path_data: Path):
-  """Import the thermal characteristics data for a given LA."""
+  temp_dataf = functions.get_LSOA_code_to_LADCD_lookup()
+  temp_dataf = temp_dataf.set_index(schema.geoLookupSchema.lsoa)
   residential_data = pd.read_csv(path_data, index_col=0)
+  residential_data = functions.prepare_residential_data(
+      residential_data, init_year, target_year)
+  residential_data = pd.merge(residential_data,
+                              temp_dataf,
+                              left_on=schema.DwellingDataSchema.LSOA,
+                              right_index=True)
   return residential_data
 
 
-def import_external_data(path_data: Path):
-  """Import the temperature and solar radiation data for a given LA."""
-  external_data = pd.read_csv(path_data, index_col=0, parse_dates=True)
-  external_data.fillna(0, inplace=True)
-  return external_data
-
-
-def estimate_heating_cooling_demand_all_las() -> None:
+def estimate_heating_cooling_demand_all_las(init_year: int,
+                                            target_year: int) -> None:
   """Estimate the heating/cooling demand for all LAs in England and"""
-  # Parameters
-  target_year: int = 2022
-  solar_gains = False
-  path_thermal_data = Path(
-      r"../data/input_data/Thermal_characteristics_beforeEE.csv")
-  path_externa_data = Path().absolute().parent / "data"
-  path_results_simulation = Path().absolute().parent / "data" / "results"
-  path_results_simulation.mkdir(parents=True, exist_ok=True)
+  path_thermal_data = PATH_GB_DATA / 'Thermal_characteristics_afterEE.csv'
+  residential_data = import_thermal_characteristics_data(
+      path_thermal_data, init_year, target_year)
 
-  residential_data = import_thermal_characteristics_data(path_thermal_data)
+  column_names = [
+      'Year', 'Month', 'Day', 'Hour', 'PWC', 'Cloud', 'DBT', 'WBT', 'RH',
+      'Press', 'WD', 'WS', 'GSR', 'DSR', 'Alt', 'Dec', 'Cloud1', 'DBT1',
+      'WBT1', 'Press1', 'WD1', 'WS1'
+  ]
+  cibse_city_list = [
+      'Glasgow', 'Birmingham', 'Cardiff', 'Edinburgh', 'Leeds', 'Manchester'
+  ]
+  pathlist = Path(PATH_CIBSE_DATA).rglob('*_DSY2_2050High50*.csv')
+  for path in pathlist:
+    # ic.ic(path.stem)
+    cibse_city = path.stem.split('_DSY2_')[0]
 
-  for LA_str in get_all_LAs(residential_data)[:2]:
-    print(LA_str)
-    temp_path_external_data = (path_externa_data / "raw" /
-                               f"{LA_str}_degree_days.csv".replace(" ", "_"))
-    external_data = import_external_data(temp_path_external_data)
-    filtered_residential_data = filter_thermal_characteristics_data(
-        residential_data, [LA_str])
+    if cibse_city in cibse_city_list:
+      ic.ic(cibse_city)
+      # list_files.append(path.stem)
+      temp_dataf = pd.read_csv(path,
+                               skiprows=32,
+                               header=None,
+                               delimiter=",",
+                               names=column_names)
+      weather_data = functions.format_weather_data(temp_dataf)
+      data_source = source.SimulationData(weather_data)
+      sim_dataf = data_source.create_CIBSE_based_simulation_data()
+      filt_las = (
+          residential_data[schema.DwellingDataSchema.CIBSE_CITY] == cibse_city)
+      list_las = list(
+          residential_data.loc[filt_las,
+                               schema.DwellingDataSchema.LADNM].unique())
+      ic.ic(list_las)
+      for LA_str in list_las:
+        ic.ic(LA_str)
+        filt = (
+            (residential_data[schema.DwellingDataSchema.LADNM] == LA_str)
+            &
+            (residential_data[schema.DwellingDataSchema.THERMAL_CAPACITY_LEVEL]
+             == "medium"))
+        LA_residential_data = residential_data.loc[filt, :]
+        # ic.ic(weather_data)
+        # ic.ic(LA_residential_data)
+        summary_results, metadata = functions.run_batch_simulation(
+            LA_residential_data, sim_dataf, PATH_SIMULATION_RESULTS)
 
-    temp_LA_results = filtered_residential_data.apply(
-        lambda row: functions.run_simulation(
-            external_data,
-            1 / row["Average thermal losses kW/K"],
-            row["Average thermal capacity kJ/K"],
-            target_year,
-            solar_gains,
-        ),
-        axis=1,
-        result_type="expand",
-    )
-    temp_LA_results.columns = [
-        schema.ResultSchema.HEATINGDEMAND,
-        schema.ResultSchema.COOLINGDEMAND,
-    ]
-    temp_LA_results[schema.ResultSchema.YEAR] = target_year
-    temp_LA_results.index.name = "Index"
-    temp_LA_results.to_csv(
-        path_results_simulation /
-        f"{LA_str}_heating_cooling_demand.csv".replace(" ", "_"))
-    return None
+        PATH_METADATA.mkdir(parents=True, exist_ok=True)
+        metadata.to_parquet(PATH_METADATA / f'{LA_str}_metadata.gzip')
+
+  return None
+
+
+def load_csv_file(temp_path: Path) -> pd.DataFrame:
+  return pd.read_csv(temp_path, index_col=0, parse_dates=True)
+
+
+def calculate_results_la_level() -> pd.DataFrame:
+  """Calculate the cooling demand at local authority level"""
+  pathlist = Path(PATH_SIMULATION_RESULTS).rglob('*.csv')
+  frames = {}
+  for temp_path in pathlist:
+    ic.ic(temp_path)
+    temp_sim_results = load_csv_file(temp_path)
+    str_la = temp_path.stem.split('_total_heating_outputs')[0]
+    frames[str_la] = temp_sim_results.sum(axis=1)
+  results = pd.DataFrame(frames)
+  PATH_SUMMARY_RESULTS.mkdir(parents=True, exist_ok=True)
+  results.to_parquet(PATH_SUMMARY_RESULTS /
+                     'summary_local_autority_results.csv')
+  return results
 
 
 def main():
   """Main function"""
-  print("Main")
-  estimate_heating_cooling_demand_all_las()
+  ic.ic("Main")
+  estimate_heating_cooling_demand_all_las(2020, 2050)
+  # calculate_results_la_level()
 
 
 if __name__ == "__main__":
