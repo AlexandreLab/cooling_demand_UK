@@ -89,11 +89,15 @@ class ThermalModel:
   opening_window_iat_limit: float = 22  # windows are opened if iat above 22C
   opening_window_oat_limit: float = 26  # windows can be opened if oat below 26C
   equipment_profile: EquipmentGainsProfile = EquipmentGainsProfile()
+  overwrite_volume_rooms: float = 0
 
   @property
   def volume_rooms(self) -> float:
     # https://www.designsindetail.com/articles/whats-the-uks-standard-ceiling-height-for-houses-extensions-and-loft-conversions#:~:text=Ceiling%20height%20standards,75%25%20of%20the%20floor%20area.
-    return self.floor_area * 2.3
+    if self.overwrite_volume_rooms == 0:
+      return self.floor_area * 2.3
+    else:
+      return self.overwrite_volume_rooms
 
   @property
   def exp_factor(self) -> float:
@@ -143,8 +147,10 @@ class ThermalModel:
         APPLIANCESGAINS] = self.equipment_profile.create_appliances_internal_heat_gains_profile(
             self.annual_appliance_energy_use, dataf.index)
     gains_cols = [
-        schema.DataSchema.TOTALGAINS, schema.DataSchema.SOLARGAINS,
-        schema.DataSchema.APPLIANCESGAINS, schema.DataSchema.OCCUPANCYGAINS
+        schema.DataSchema.TOTALGAINS,
+        schema.DataSchema.SOLARGAINS,
+        schema.DataSchema.OCCUPANCYGAINS,
+        schema.DataSchema.APPLIANCESGAINS,
     ]
     total_gains = self.model_data[gains_cols].sum(axis=1).values
     self.model_data[schema.DataSchema.TOTALGAINS] = total_gains
