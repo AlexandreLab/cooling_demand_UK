@@ -26,6 +26,7 @@ class DwellingDataSchema:
   LADNM = "ladnm"
   DWELLING_FORMS = "Dwelling forms"
   HEATING_SYSTEMS = "Heating systems"
+  HEATING_DEMAND = "Average annual heat demand kWh"
 
 
 class ValidationDataSchema:
@@ -80,5 +81,5 @@ class VisualisationSchema:
   COOLINGDEMAND = ResultSchema.COOLINGDEMAND
   DEMAND_HEADROOM = "Thermal demand headroom (kW)"
   DEMAND_HEADROOM_AFTER_COOLING = "Thermal demand headroom after cooling demand (kW)"
-  SPECIFICCOOLINGDEMAND_DWELLING = "Specific cooling demand\n(kWh/dwelling)"
+  SPECIFICCOOLINGDEMAND_DWELLING = "Cooling demand\n(kWh/dwelling)"
   SPECIFICCOOLINGDEMAND_AREA = "Specific cooling demand\n(kWh/m2)"
