@@ -91,9 +91,10 @@ def prepare_residential_data(dataf: pd.DataFrame, init_year: int,
 
 def format_summary_results(results: pd.DataFrame,
                            nb_dwellings: list[int]) -> pd.DataFrame:
+  ic.ic(results)
   results.columns = [
-      schema.ResultSchema.SPECIFICHEATINGDEMAND,
-      schema.ResultSchema.SPECIFICCOOLINGDEMAND
+      schema.ResultSchema.SPECIFICHEATINGDEMAND_DWELLING,
+      schema.ResultSchema.SPECIFICCOOLINGDEMAND_DWELLING
   ]
   results[[
       schema.ResultSchema.HEATINGDEMAND, schema.ResultSchema.COOLINGDEMAND
@@ -412,3 +413,45 @@ def load_netcdf_files(path_directory: Path,
   else:
     concat_dataf = pd.DataFrame(columns=[target_variable.column_name])
   return concat_dataf
+
+
+def get_lsoa_level_results(dataf: pd.DataFrame,
+                           index_lsoa_dict: dict[int, str]) -> pd.DataFrame:
+  tuples = [(index_lsoa_dict[int(x)], int(x)) for x in dataf.columns]
+  new_columns = pd.MultiIndex.from_tuples(
+      tuples, names=[schema.ResultSchema.LSOA, schema.ResultSchema.INDEX])
+  dataf.columns = new_columns
+  dataf = dataf.T.groupby(level=0).sum().T
+  return dataf
+
+
+def extract_cooling_demand_profiles_and_peaks(path: Path,
+                                              residential_data: pd.DataFrame):
+  """From the simulation results, aggregate the values at LA level to create an hourly profile of the cooling demand+extract the peak demand for every lsoas in the LA"""
+  pathlist = (path / 'simulation').rglob('*_total_heating_outputs.csv')
+
+  index_lsoa_dict: dict[int, str] = residential_data[
+      schema.ResultSchema.LSOA].to_dict()
+
+  lsoa_peak_frames: dict[str, pd.Series] = {}
+  index_demand_frames: dict[int, pd.Series] = {}
+  frames: dict[str, pd.Series] = {}
+  for temp_path in pathlist:
+    ic.ic(temp_path)
+    la_str = temp_path.stem.split('_total_heating_outputs')[0]
+    la_code = la_str.split('_')[-1]
+    temp_sim_results = pd.read_csv(temp_path, index_col=0, parse_dates=True)
+    frames[la_code] = -temp_sim_results.sum(axis=1)
+    index_demand_frames[la_code] = -temp_sim_results.sum()
+    lsoa_level_results = get_lsoa_level_results(-temp_sim_results,
+                                                index_lsoa_dict)
+    lsoa_peak_frames[la_code] = lsoa_level_results.max()
+
+  lsoa_peak = pd.concat(lsoa_peak_frames).to_frame()
+  lsoa_peak.columns = [schema.VisualisationSchema.PEAK_COOLING]
+  index_demand = pd.concat(index_demand_frames).to_frame()
+  index_demand.columns = [schema.VisualisationSchema.COOLINGDEMAND]
+  cooling_demand = pd.DataFrame(frames)
+  cooling_demand.to_csv(path / 'cooling_demand_profiles_la.csv')
+  lsoa_peak.to_csv(path / 'cooling_peak_results_lsoa.csv')
+  return lsoa_peak, cooling_demand

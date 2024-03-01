@@ -4,6 +4,7 @@ import icecream as ic
 import pandas as pd
 
 from common import functions, schema
+from config import settings
 from data import source
 
 PATH_GB_DATA = Path(
@@ -13,7 +14,7 @@ PATH_CIBSE_DATA = Path(
     r"C:\Users\sceac10\OneDrive - Cardiff University\General\data\CIBSE weather data\WD16SET\WD16SET\WDD16SET\WDD16SET\WMD16SET\WMD16SET"
 )
 PATH_RESULTS = Path(
-    r'C:\Users\sceac10\OneDrive - Cardiff University\General\04 - Analysis\2050 high emission'
+    r'C:\Users\sceac10\OneDrive - Cardiff University\General\04 - Analysis\2050 high emission low thermal capacity'
 )
 PATH_SIMULATION_RESULTS = PATH_RESULTS / 'simulation'
 PATH_METADATA = PATH_RESULTS / 'metadata'
@@ -22,7 +23,7 @@ PATH_SUMMARY_RESULTS = PATH_RESULTS / 'summary_results'
 
 def import_thermal_characteristics_data(path_data: Path, init_year: int,
                                         target_year: int) -> pd.DataFrame:
-  """Import the thermal characteristics data for a given LA."""
+  """Import the thermal characteristics data of the building stock."""
   temp_dataf = functions.get_LSOA_code_to_LADCD_lookup()
   temp_dataf = temp_dataf.set_index(schema.geoLookupSchema.lsoa)
   residential_data = pd.read_csv(path_data, index_col=0)
@@ -78,16 +79,16 @@ def estimate_heating_cooling_demand_all_las(init_year: int,
             (residential_data[schema.DwellingDataSchema.LADNM] == LA_str)
             &
             (residential_data[schema.DwellingDataSchema.THERMAL_CAPACITY_LEVEL]
-             == "medium"))
+             == settings.thermal_capacity_level))
         LA_residential_data = residential_data.loc[filt, :]
         # ic.ic(weather_data)
-        # ic.ic(LA_residential_data)
+        ic.ic(LA_residential_data)
         summary_results, metadata = functions.run_batch_simulation(
             LA_residential_data, sim_dataf, PATH_SIMULATION_RESULTS)
 
         PATH_METADATA.mkdir(parents=True, exist_ok=True)
         metadata.to_parquet(PATH_METADATA / f'{LA_str}_metadata.gzip')
-
+      ic.ic(LA_residential_data)
   return None
 
 
@@ -114,8 +115,10 @@ def calculate_results_la_level() -> pd.DataFrame:
 def main():
   """Main function"""
   ic.ic("Main")
-  estimate_heating_cooling_demand_all_las(2020, 2050)
-  # calculate_results_la_level()
+  init_year = 2020
+  target_year = 2050
+  estimate_heating_cooling_demand_all_las(init_year, target_year)
+  calculate_results_la_level()
 
 
 if __name__ == "__main__":

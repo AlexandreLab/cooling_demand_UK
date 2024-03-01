@@ -83,3 +83,6 @@ class VisualisationSchema:
   DEMAND_HEADROOM_AFTER_COOLING = "Thermal demand headroom after cooling demand (kW)"
   SPECIFICCOOLINGDEMAND_DWELLING = "Cooling demand\n(kWh/dwelling)"
   SPECIFICCOOLINGDEMAND_AREA = "Specific cooling demand\n(kWh/m2)"
+  COOLINGDEMAND_GW = "Cooling demand (GW)"
+  COOLINGDEMAND_MW = "Cooling demand (MW)"
+  LEGEND = "Legend"
