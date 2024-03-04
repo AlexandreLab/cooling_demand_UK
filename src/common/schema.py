@@ -84,5 +84,8 @@ class VisualisationSchema:
   SPECIFICCOOLINGDEMAND_DWELLING = "Cooling demand\n(kWh/dwelling)"
   SPECIFICCOOLINGDEMAND_AREA = "Specific cooling demand\n(kWh/m2)"
   COOLINGDEMAND_GW = "Cooling demand (GW)"
+  AVG_COOLINGDEMAND_GW = "Average cooling demand (GW)"
+  COOLINGDEMAND_GWH = "Cooling demand (GWh)"
+  COOLINGDEMAND_TWH = "Cooling demand (TWh)"
   COOLINGDEMAND_MW = "Cooling demand (MW)"
   LEGEND = "Legend"

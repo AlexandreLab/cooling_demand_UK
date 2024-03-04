@@ -9,16 +9,17 @@ import xarray as xr
 from common import enums, schema, sim_param
 from models import thermal_model
 
-PATH_GEO_LOOKUP = Path(
-    r"C:\Users\sceac10\OneDrive - Cardiff University\04 - Projects\22 - Heat demand scotland\data\geo_lookup_tables\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU.csv"
-)
+PATH_ORG = Path(r'D:\Profile data Cardiff\OneDrive - Cardiff University')
+
+PATH_GEO_LOOKUP = PATH_ORG / r"04 - Projects\22 - Heat demand scotland\data\geo_lookup_tables\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU.csv"
 
 
 def standardise_str(dataf: pd.DataFrame, target_column: str) -> pd.DataFrame:
-  dataf[target_column] = dataf[target_column].str.strip().str.lower(
+  new_df = dataf.copy()
+  new_df[target_column] = new_df[target_column].str.strip().str.lower(
   ).str.replace('-', '')
-  dataf[target_column].fillna("uncategorized", inplace=True)
-  return dataf
+  new_df[target_column] = new_df[target_column].fillna("uncategorized")
+  return new_df
 
 
 def get_LSOA_code_to_LADCD_lookup() -> pd.DataFrame:
@@ -73,11 +74,8 @@ def prepare_residential_data(dataf: pd.DataFrame, init_year: int,
       index=[
           schema.DwellingDataSchema.REGION,
           schema.DwellingDataSchema.CIBSE_CITY
-      ]
-  ).T.to_csv(
-      Path(
-          r'C:\Users\sceac10\OneDrive - Cardiff University\General\communication\tables\Region_to_CIBSE_city.csv'
-      ))
+      ]).T.to_csv(PATH_ORG /
+                  r'General\communication\tables\Region_to_CIBSE_city.csv')
   dataf[schema.DwellingDataSchema.CIBSE_CITY] = dataf[
       schema.DwellingDataSchema.REGION].apply(lambda x: lookup_map[x])
 
@@ -157,9 +155,8 @@ def format_weather_data(dataf: pd.DataFrame) -> pd.DataFrame:
 
 def get_percentage_increase_dwellings(init_year: int,
                                       target_year: int) -> float:
-  PATH_TABLES = Path(
-      r"C:\Users\sceac10\OneDrive - Cardiff University\General\communication\tables"
-  )
+  PATH_TABLES = PATH_ORG / r"General\communication\tables"
+
   fn = "Dwellings_size.csv"
   dataf = pd.read_csv(PATH_TABLES / fn, index_col=0, thousands=r',')
   dataf = dataf.dropna(how='any').T
@@ -236,10 +233,12 @@ def print_heating_and_cooling_demand(
     simulation_results: pd.DataFrame, ) -> tuple[float, float]:
   cooling_demand = float(simulation_results.loc[
       simulation_results[schema.DataSchema.HEATINGOUTPUT] < 0,
-      schema.DataSchema.HEATINGOUTPUT, ].sum())
+      schema.DataSchema.HEATINGOUTPUT,
+  ].sum())
   heating_demand = float(simulation_results.loc[
       simulation_results[schema.DataSchema.HEATINGOUTPUT] > 0,
-      schema.DataSchema.HEATINGOUTPUT, ].sum())
+      schema.DataSchema.HEATINGOUTPUT,
+  ].sum())
 
   ic.ic(heating_demand, cooling_demand)
   return heating_demand, cooling_demand

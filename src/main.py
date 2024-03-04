@@ -7,18 +7,15 @@ from common import functions, schema
 from config import settings
 from data import source
 
-PATH_GB_DATA = Path(
-    r'C:\Users\sceac10\OneDrive - Cardiff University\04 - Projects\00 - Final data\Annual_demand'
-)
-PATH_CIBSE_DATA = Path(
-    r"C:\Users\sceac10\OneDrive - Cardiff University\General\data\CIBSE weather data\WD16SET\WD16SET\WDD16SET\WDD16SET\WMD16SET\WMD16SET"
-)
-PATH_RESULTS = Path(
-    r'C:\Users\sceac10\OneDrive - Cardiff University\General\04 - Analysis\2050 high emission low thermal capacity'
-)
-PATH_SIMULATION_RESULTS = PATH_RESULTS / 'simulation'
-PATH_METADATA = PATH_RESULTS / 'metadata'
-PATH_SUMMARY_RESULTS = PATH_RESULTS / 'summary_results'
+PATH_ORG = Path(r'D:\Profile data Cardiff\OneDrive - Cardiff University')
+
+PATH_GB_DATA = PATH_ORG / r'04 - Projects\00 - Final data\Annual_demand'
+
+PATH_CIBSE_DATA = PATH_ORG / r'General\data\CIBSE weather data\WD16SET\WD16SET\WDD16SET\WDD16SET\WMD16SET\WMD16SET'
+PATH_RESULTS = PATH_ORG / r'General\04 - Analysis\2050 high emission medium thermal capacity'
+PATH_SIMULATION_RESULTS = PATH_RESULTS / r'simulation'
+PATH_METADATA = PATH_RESULTS / r'metadata'
+PATH_SUMMARY_RESULTS = PATH_RESULTS / r'summary_results'
 
 
 def import_thermal_characteristics_data(path_data: Path, init_year: int,
@@ -76,11 +73,12 @@ def estimate_heating_cooling_demand_all_las(init_year: int,
       for LA_str in list_las:
         ic.ic(LA_str)
         filt = (
-            (residential_data[schema.DwellingDataSchema.LADNM] == LA_str)
+            (residential_data[schema.DwellingDataSchema.LADNM]
+             == LA_str.lower())
             &
             (residential_data[schema.DwellingDataSchema.THERMAL_CAPACITY_LEVEL]
              == settings.thermal_capacity_level))
-        LA_residential_data = residential_data.loc[filt, :]
+        LA_residential_data = residential_data.loc[filt, :].copy()
         # ic.ic(weather_data)
         ic.ic(LA_residential_data)
         summary_results, metadata = functions.run_batch_simulation(
@@ -108,7 +106,7 @@ def calculate_results_la_level() -> pd.DataFrame:
   results = pd.DataFrame(frames)
   PATH_SUMMARY_RESULTS.mkdir(parents=True, exist_ok=True)
   results.to_parquet(PATH_SUMMARY_RESULTS /
-                     'summary_local_autority_results.csv')
+                     r'summary_local_autority_results.csv')
   return results
 
 
