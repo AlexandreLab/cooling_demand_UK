@@ -138,14 +138,19 @@ class ThermalModel:
       heating_output = 0
     return heating_output
 
-  def load_model_data(self, dataf: pd.DataFrame) -> None:
+  def load_model_data(self,
+                      dataf: pd.DataFrame,
+                      include_gains: bool = True) -> None:
     # ic.ic(self)
     self.model_data = dataf.copy()
     self.estimate_solar_gains()
-    self.model_data[
-        schema.DataSchema.
-        APPLIANCESGAINS] = self.equipment_profile.create_appliances_internal_heat_gains_profile(
-            self.annual_appliance_energy_use, dataf.index)
+    if include_gains:
+      self.model_data[
+          schema.DataSchema.
+          APPLIANCESGAINS] = self.equipment_profile.create_appliances_internal_heat_gains_profile(
+              self.annual_appliance_energy_use, dataf.index)
+    else:
+      self.model_data[schema.DataSchema.APPLIANCESGAINS] = 0
     gains_cols = [
         schema.DataSchema.TOTALGAINS,
         schema.DataSchema.SOLARGAINS,

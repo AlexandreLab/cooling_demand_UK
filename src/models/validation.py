@@ -6,10 +6,13 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from src.common import enums, functions, schema
-PATH_ORG = Path(r'D:\Profile data Cardiff\OneDrive - Cardiff University')
-PATH_MEASURED_IAT = PATH_ORG / r"General\resources\prediction of overheating data\MeasuredTemperature_16Jun-6Jul_2017.xlsx'
-PATH_EXTENDED_MEASURED_IAT = PATH_ORG /  r"General\resources\prediction of overheating data\extra_data_Loughborough"
+from common import enums, functions, schema
+
+PATH_ORG = Path(
+    r'D:\Profile data Cardiff\Cardiff University\Energy Data - Documents')
+PATH_MEASURED_IAT = PATH_ORG / r'General\resources\prediction of overheating data\MeasuredTemperature_16Jun-6Jul_2017.xlsx'
+PATH_EXTENDED_MEASURED_IAT = PATH_ORG / r"General\resources\prediction of overheating data\extra_data_Loughborough"
+
 
 def calculate_cooling_degree_hours(IAT_df: pd.Series,
                                    threshold: float = 24.) -> float:

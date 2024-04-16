@@ -165,12 +165,14 @@ class SimulationData:
         schema.DataSchema.OAT].values
     dataf[schema.DataSchema.HEATINGSEASON] = filtered_era5_data[
         schema.DataSchema.HEATINGSEASON].values
-    dataf[schema.DataSchema.HEATINGSEASON].fillna(method='ffill', inplace=True)
+    dataf[schema.DataSchema.HEATINGSEASON] = dataf[
+        schema.DataSchema.HEATINGSEASON].ffill()
 
     dataf.loc[:, schema.DataSchema.SOLARRADIATION] = np.nan
     dataf[schema.DataSchema.SOLARRADIATION] = filtered_era5_data[
         schema.DataSchema.SOLARRADIATION].values
-    dataf[schema.DataSchema.SOLARRADIATION].fillna(
-        dataf[schema.DataSchema.SOLARRADIATION].interpolate(), inplace=True)
+    dataf[schema.DataSchema.SOLARRADIATION] = dataf[
+        schema.DataSchema.SOLARRADIATION].fillna(
+            dataf[schema.DataSchema.SOLARRADIATION].interpolate())
 
     return dataf

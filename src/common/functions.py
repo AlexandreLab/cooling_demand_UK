@@ -9,9 +9,12 @@ import xarray as xr
 from common import enums, schema, sim_param
 from models import thermal_model
 
-PATH_ORG = Path(r'D:\Profile data Cardiff\OneDrive - Cardiff University')
+PATH_ORG = Path(
+    r'D:\Profile data Cardiff\Cardiff University\Energy Data - Documents')
 
-PATH_GEO_LOOKUP = PATH_ORG / r"04 - Projects\22 - Heat demand scotland\data\geo_lookup_tables\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU.csv"
+PATH_GEO_LOOKUP = Path(
+    r'D:\Profile data Cardiff\OneDrive - Cardiff University\04 - Projects\22 - Heat demand scotland\data\geo_lookup_tables\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU\PCD_OA_LSOA_MSOA_LAD_AUG19_UK_LU.csv'
+)
 
 
 def standardise_str(dataf: pd.DataFrame, target_column: str) -> pd.DataFrame:
