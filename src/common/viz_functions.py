@@ -1,9 +1,24 @@
+import os
 from pathlib import Path
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
-import pandas as pd
+import matplotlib.ticker as tkr
+from dotenv import load_dotenv
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+load_dotenv()  # take environment variables from .env.
+
+
+def get_UK_LSOA_map() -> gpd:
+  path_map = Path(
+      os.getenv('PATH_ONEDRIVE')) / r'04 - Projects\00 - Final data\maps'
+  file = "UK_2011_Census_boundaries_LSOA_fixed_v2.geojson"
+  path_map = path_map / file
+  map_df = get_map(path_map)
+  filt = map_df['LSOA11CD'].isna()
+  map_df.loc[filt, 'LSOA11CD'] = map_df.loc[filt, 'DataZone']
+  return map_df
 
 
 def get_map(path_map: Path) -> gpd:
@@ -21,7 +36,8 @@ def plot_map(map_df: gpd,
              vmax: float = None,
              cmap: float = None,
              legend: bool = False,
-             label_legend: str = ''):
+             label_legend: str = '',
+             **kwargs):
 
   # map_df = map_df.dropna(subset=[target])
   # create figure and axes for Matplotlib
@@ -42,28 +58,34 @@ def plot_map(map_df: gpd,
   map_df = map_df.to_crs(epsg=3395)  # mercator projections
 
   if legend:
+    legend_kwds = {
+        "label": label_legend,
+        "orientation": "vertical",
+        "shrink": .2,
+        "format": tkr.FuncFormatter(lambda x, p: "{:,.0f}".format(x))
+    }
+    legend_kwds.update(kwargs)
     divider = make_axes_locatable(ax)
-    cax = divider.append_axes("bottom", size="5%", pad=0.1)
-    map = map_df.plot(column=target,
-                      cmap=cmap,
-                      linewidth=0.01,
-                      ax=ax,
-                      edgecolor='black',
-                      vmin=vmin,
-                      vmax=vmax,
-                      legend=legend,
-                      legend_kwds={
-                          "label": label_legend,
-                          "orientation": "horizontal"
-                      },
-                      cax=cax)
+    cax = divider.append_axes("right", size="5%", pad=0.1)
+    final_map = map_df.plot(
+        column=target,
+        cmap=cmap,
+        linewidth=0,  #0.01,
+        ax=ax,
+        edgecolor='black',
+        vmin=vmin,
+        vmax=vmax,
+        legend=legend,
+        legend_kwds=legend_kwds,
+        cax=cax)
   else:
-    map = map_df.plot(column=target,
-                      cmap=cmap,
-                      linewidth=0.01,
-                      ax=ax,
-                      edgecolor='black',
-                      vmin=vmin,
-                      vmax=vmax)
+    final_map = map_df.plot(column=target,
+                            cmap=cmap,
+                            linewidth=0.01,
+                            ax=ax,
+                            edgecolor='black',
+                            vmin=vmin,
+                            vmax=vmax)
   plt.close()
-  return map
+  return final_map
+  return final_map

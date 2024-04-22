@@ -88,7 +88,8 @@ class ThermalModel:
   summer_solar_access: float = 0.9  # Summer solar access factor: 0.9 (Average value) Table 6d p216
   opening_window_iat_limit: float = 22  # windows are opened if iat above 22C
   opening_window_oat_limit: float = 26  # windows can be opened if oat below 26C
-  equipment_profile: EquipmentGainsProfile = EquipmentGainsProfile()
+  equipment_profile: EquipmentGainsProfile = field(
+      default_factory=EquipmentGainsProfile())
   overwrite_volume_rooms: float = 0
 
   @property
