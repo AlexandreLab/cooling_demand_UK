@@ -2,19 +2,22 @@
 name = "degree-days-analysis"
 version = "0.1.0"
 description = ""
-authors = ["AlexandreLab <canet.alexandre@gmail.com>"]
+authors = ["Alexandre Canet <canet.alexandre@gmail.com>"]
+readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.11"
-pandas = "^1.4.3"
-seaborn = "^0.11.2"
-cdsapi = "^0.5.1"
-xarray = "^2022.6.0"
+python = "^3.12"
+pandas = "^2.2.2"
+geopandas = "^0.14.3"
+matplotlib = "^3.8.4"
+seaborn = "^0.13.2"
 
-[tool.poetry.dev-dependencies]
-pytest = "^7.1.2"
-ipykernel = "^6.15.1"
+[tool.poetry.group.dev.dependencies]
+yapf = "^0.40.2"
+ipykernel = "^6.29.4"
+pytest = "^8.1.1"
+pylint = "^3.1.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
