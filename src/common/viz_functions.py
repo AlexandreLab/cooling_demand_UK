@@ -11,8 +11,7 @@ load_dotenv()  # take environment variables from .env.
 
 
 def get_UK_LSOA_map() -> gpd:
-  path_map = Path(
-      os.getenv('PATH_ONEDRIVE')) / r'04 - Projects\00 - Final data\maps'
+  path_map = Path(os.getenv('PATH_ONEDRIVE')) / r'General/resources/maps'
   file = "UK_2011_Census_boundaries_LSOA_fixed_v2.geojson"
   path_map = path_map / file
   map_df = get_map(path_map)

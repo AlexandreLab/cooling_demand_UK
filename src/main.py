@@ -7,15 +7,16 @@ from common import functions, schema
 from config import settings
 from data import source
 
-PATH_ORG = Path(
-    r'D:\Profile data Cardiff\Cardiff University\Energy Data - Documents')
-
-PATH_GB_DATA = Path(
-    r'D:\Profile data Cardiff\OneDrive - Cardiff University\04 - Projects\00 - Final data\Annual_demand'
+PATH_DRIVE = Path(
+    r'/Users/sceac10/Library/CloudStorage/OneDrive-SharedLibraries-CardiffUniversity/Energy Data - Documents'
 )
 
-PATH_CIBSE_DATA = PATH_ORG / r'General\data\CIBSE weather data\WD16SET\WD16SET\WDD16SET\WDD16SET\WMD16SET\WMD16SET'
-PATH_RESULTS = PATH_ORG / r'General\04 - Analysis\2050 high emission medium thermal capacity'
+PATH_ORG = PATH_DRIVE
+
+PATH_GB_DATA = PATH_DRIVE / r'General/resources/Annual_demand'
+
+PATH_CIBSE_DATA = PATH_ORG / r'General/data/CIBSE weather data/WD16SET/WD16SET/WDD16SET/WDD16SET/WMD16SET/WMD16SET'
+PATH_RESULTS = PATH_ORG / r'General/04 - Analysis/2050 high emission medium thermal capacity'
 PATH_SIMULATION_RESULTS = PATH_RESULTS / r'simulation'
 PATH_METADATA = PATH_RESULTS / r'metadata'
 PATH_SUMMARY_RESULTS = PATH_RESULTS / r'summary_results'
