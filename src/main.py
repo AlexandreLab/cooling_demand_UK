@@ -15,7 +15,7 @@ PATH_ORG = PATH_DRIVE
 
 PATH_GB_DATA = PATH_DRIVE / r'General/resources/Annual_demand'
 
-PATH_CIBSE_DATA = PATH_ORG / r'General/data/CIBSE weather data/WD16SET/WD16SET/WDD16SET/WDD16SET/WMD16SET/WMD16SET'
+PATH_CIBSE_DATA = r'/Users/sceac10/Library/CloudStorage/OneDrive-SharedLibraries-CardiffUniversity/National Grid - Open Innovation - Documents/General/02 - Work/00 - Misc and data/data/CIBSE weather data'
 PATH_RESULTS = PATH_ORG / r'General/04 - Analysis/2050 high emission medium thermal capacity'
 PATH_SIMULATION_RESULTS = PATH_RESULTS / r'simulation'
 PATH_METADATA = PATH_RESULTS / r'metadata'
@@ -110,7 +110,7 @@ def calculate_results_la_level() -> pd.DataFrame:
   results = pd.DataFrame(frames)
   PATH_SUMMARY_RESULTS.mkdir(parents=True, exist_ok=True)
   results.to_parquet(PATH_SUMMARY_RESULTS /
-                     r'summary_local_autority_results.csv')
+                     r'summary_local_autority_results.gzip')
   return results
 
 

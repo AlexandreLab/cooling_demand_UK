@@ -106,6 +106,7 @@ class ThermalModel:
 
   @property
   def annual_appliance_energy_use(self):
+    ## L2 SAP 2012
     return 207.8 * (self.floor_area * self.number_occupants)**0.4714
 
   @property
@@ -150,6 +151,8 @@ class ThermalModel:
           schema.DataSchema.
           APPLIANCESGAINS] = self.equipment_profile.create_appliances_internal_heat_gains_profile(
               self.annual_appliance_energy_use, dataf.index)
+      self.model_data[schema.DataSchema.
+                      OCCUPANCYGAINS] = self.calculate_occupancy_heat_gains()
     else:
       self.model_data[schema.DataSchema.APPLIANCESGAINS] = 0
     gains_cols = [

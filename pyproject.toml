@@ -18,6 +18,8 @@ python-dotenv = "^1.0.1"
 openpyxl = "^3.1.5"
 pydantic-settings = "^2.7.0"
 pvlib = "0.11.1"
+pyarrow = "^20.0.0"
+fastparquet = "^2024.11.0"
 
 
 [tool.poetry.group.dev.dependencies]
